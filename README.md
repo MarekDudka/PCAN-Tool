@@ -49,7 +49,14 @@ authoritative, since PEAK-System can update it.
 ```
 ./gradlew :app:packageDeb    # Linux .deb
 ./gradlew :app:packageMsi    # Windows .msi (run on Windows, or cross-compile per Gradle docs)
+./scripts/build-appimage.sh  # Linux AppImage (portable, no install needed)
 ```
+
+The AppImage isn't a Gradle task because Compose Multiplatform's packaging only wraps whatever
+jpackage itself supports (deb/rpm/msi/dmg), and AppImage isn't one of those. The script instead
+wraps `:app:createDistributable`'s output (which it runs first if needed) in the AppDir layout
+`appimagetool` expects, fetching that tool on first run. Output lands at
+`app/build/compose/binaries/main/appimage/PCAN-Tool-x86_64.AppImage`.
 
 ## Scope
 
