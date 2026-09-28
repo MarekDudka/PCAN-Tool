@@ -21,7 +21,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 private const val MAX_TRACE_ROWS = 5000
@@ -57,11 +59,14 @@ class AppViewModel(private val scope: CoroutineScope) {
     var lastExportError by mutableStateOf<String?>(null)
     var lastSendError by mutableStateOf<String?>(null)
 
+    val periodicMessages = mutableStateListOf<PeriodicMessageEntry>()
+
     private var connection: PcanConnection? = null
     private var readJob: Job? = null
     private val rxStatsTable = MessageStatsTable()
     private val txStatsTable = MessageStatsTable()
     private val recordingSession = RecordingSession()
+    private val periodicJobs = mutableMapOf<PeriodicMessageEntry, Job>()
 
     fun refreshAvailableChannels() {
         scope.launch(ioDispatcher) {
@@ -85,6 +90,7 @@ class AppViewModel(private val scope: CoroutineScope) {
             } finally {
                 connection?.close()
                 connection = null
+                stopAllPeriodic()
                 if (connectionState !is ConnectionState.Error) {
                     connectionState = ConnectionState.Disconnected
                 }
@@ -97,27 +103,73 @@ class AppViewModel(private val scope: CoroutineScope) {
         readJob = null
     }
 
-    /** Sends a frame on the current connection; no-ops with [lastSendError] set if not connected. */
+    /** Sends one frame immediately; no-ops with [lastSendError] set if not connected. */
     fun sendMessage(id: Long, extended: Boolean, remote: Boolean, data: ByteArray) {
+        scope.launch(ioDispatcher) { sendOnce(id, extended, remote, data) }
+    }
+
+    /**
+     * Adds a new cyclic TX entry, initially disabled — flip it on via [setPeriodicEnabled].
+     * Routed through [ioDispatcher] like every other mutation of [periodicJobs] so enabling,
+     * disabling and the connect/disconnect cleanup below never race on that map.
+     */
+    fun addPeriodicMessage(id: Long, extended: Boolean, remote: Boolean, data: ByteArray, intervalMillis: Long) {
         scope.launch(ioDispatcher) {
-            val conn = connection
-            if (conn == null) {
-                lastSendError = "Not connected"
-                return@launch
-            }
-            try {
-                val sent = conn.write(id, extended, remote, data)
-                lastSendError = null
-                val stat = txStatsTable.update(sent)
-                txStats[stat.key] = stat
-                txTraceMessages.add(sent)
-                if (txTraceMessages.size > MAX_TRACE_ROWS) txTraceMessages.removeAt(0)
-                if (recordingSession.record(sent, Direction.TX) != null) {
-                    recordedCount = recordingSession.count
+            periodicMessages.add(PeriodicMessageEntry(id, extended, remote, data, intervalMillis))
+        }
+    }
+
+    fun removePeriodicMessage(entry: PeriodicMessageEntry) {
+        scope.launch(ioDispatcher) {
+            periodicJobs.remove(entry)?.cancel()
+            entry.enabled = false
+            periodicMessages.remove(entry)
+        }
+    }
+
+    fun setPeriodicEnabled(entry: PeriodicMessageEntry, enabled: Boolean) {
+        scope.launch(ioDispatcher) {
+            if (enabled == entry.enabled) return@launch
+            entry.enabled = enabled
+            if (enabled) {
+                periodicJobs[entry] = scope.launch(ioDispatcher) {
+                    while (isActive) {
+                        sendOnce(entry.id, entry.extended, entry.remote, entry.data)
+                        delay(entry.intervalMillis)
+                    }
                 }
-            } catch (e: Exception) {
-                lastSendError = e.message ?: "Failed to send"
+            } else {
+                periodicJobs.remove(entry)?.cancel()
             }
+        }
+    }
+
+    /** Called from within [connect]'s own `finally` block, already on [ioDispatcher]. */
+    private fun stopAllPeriodic() {
+        periodicJobs.values.forEach { it.cancel() }
+        periodicJobs.clear()
+        periodicMessages.forEach { it.enabled = false }
+    }
+
+    /** Must run on [ioDispatcher] — called both for one-shot sends and from each periodic loop tick. */
+    private fun sendOnce(id: Long, extended: Boolean, remote: Boolean, data: ByteArray) {
+        val conn = connection
+        if (conn == null) {
+            lastSendError = "Not connected"
+            return
+        }
+        try {
+            val sent = conn.write(id, extended, remote, data)
+            lastSendError = null
+            val stat = txStatsTable.update(sent)
+            txStats[stat.key] = stat
+            txTraceMessages.add(sent)
+            if (txTraceMessages.size > MAX_TRACE_ROWS) txTraceMessages.removeAt(0)
+            if (recordingSession.record(sent, Direction.TX) != null) {
+                recordedCount = recordingSession.count
+            }
+        } catch (e: Exception) {
+            lastSendError = e.message ?: "Failed to send"
         }
     }
 

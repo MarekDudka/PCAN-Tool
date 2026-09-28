@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -12,6 +11,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,30 +21,47 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.pcantool.app.state.PeriodicMessageEntry
 import com.pcantool.core.CanMessage
 
-/** Chronological logs of filtered messages, received (RX) and sent (TX) side by side. */
+/** Chronological logs of filtered messages: received (RX) on top, sent (TX) below. */
 @Composable
-fun TraceView(rxMessages: List<CanMessage>, txMessages: List<CanMessage>) {
-    Row(modifier = Modifier.fillMaxSize()) {
-        TraceList("RX", rxMessages, modifier = Modifier.weight(1f).fillMaxHeight())
-        TraceList("TX", txMessages, modifier = Modifier.weight(1f).fillMaxHeight())
+fun TraceView(
+    rxMessages: List<CanMessage>,
+    txMessages: List<CanMessage>,
+    periodicMessages: List<PeriodicMessageEntry>,
+    onSendOnce: (id: Long, extended: Boolean, remote: Boolean, data: ByteArray) -> Unit,
+    onAddPeriodic: (id: Long, extended: Boolean, remote: Boolean, data: ByteArray, intervalMillis: Long) -> Unit,
+    onTogglePeriodic: (PeriodicMessageEntry, Boolean) -> Unit,
+    onRemovePeriodic: (PeriodicMessageEntry) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            SectionLabel("RX")
+            TraceList(rxMessages, modifier = Modifier.fillMaxSize())
+        }
+        HorizontalDivider()
+        TxSection(
+            periodicMessages = periodicMessages,
+            onSendOnce = onSendOnce,
+            onAddPeriodic = onAddPeriodic,
+            onTogglePeriodic = onTogglePeriodic,
+            onRemovePeriodic = onRemovePeriodic,
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+        ) {
+            TraceList(txMessages, modifier = Modifier.fillMaxSize())
+        }
     }
 }
 
 @Composable
-private fun TraceList(title: String, messages: List<CanMessage>, modifier: Modifier = Modifier) {
+private fun TraceList(messages: List<CanMessage>, modifier: Modifier = Modifier) {
     val listState = rememberLazyListState()
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) listState.scrollToItem(messages.size - 1)
     }
 
     Column(modifier = modifier) {
-        Text(
-            title,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-        )
         TraceHeaderRow()
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
             itemsIndexed(messages, key = { index, _ -> index }) { index, message ->

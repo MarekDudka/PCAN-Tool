@@ -4,13 +4,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,25 +19,42 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.pcantool.app.state.PeriodicMessageEntry
 import com.pcantool.core.MessageStat
 
-/** One row per distinct CAN id, received (RX) and sent (TX) shown as separate tables. */
+/** One row per distinct CAN id: received (RX) stats on top, sent (TX) stats below. */
 @Composable
-fun OverviewView(rxStats: List<MessageStat>, txStats: List<MessageStat>) {
-    Row(modifier = Modifier.fillMaxSize()) {
-        StatsTable("RX", rxStats, modifier = Modifier.weight(1f).fillMaxHeight())
-        StatsTable("TX", txStats, modifier = Modifier.weight(1f).fillMaxHeight())
+fun OverviewView(
+    rxStats: List<MessageStat>,
+    txStats: List<MessageStat>,
+    periodicMessages: List<PeriodicMessageEntry>,
+    onSendOnce: (id: Long, extended: Boolean, remote: Boolean, data: ByteArray) -> Unit,
+    onAddPeriodic: (id: Long, extended: Boolean, remote: Boolean, data: ByteArray, intervalMillis: Long) -> Unit,
+    onTogglePeriodic: (PeriodicMessageEntry, Boolean) -> Unit,
+    onRemovePeriodic: (PeriodicMessageEntry) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            SectionLabel("RX")
+            StatsTable(rxStats, modifier = Modifier.fillMaxSize())
+        }
+        HorizontalDivider()
+        TxSection(
+            periodicMessages = periodicMessages,
+            onSendOnce = onSendOnce,
+            onAddPeriodic = onAddPeriodic,
+            onTogglePeriodic = onTogglePeriodic,
+            onRemovePeriodic = onRemovePeriodic,
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+        ) {
+            StatsTable(txStats, modifier = Modifier.fillMaxSize())
+        }
     }
 }
 
 @Composable
-private fun StatsTable(title: String, stats: List<MessageStat>, modifier: Modifier = Modifier) {
+private fun StatsTable(stats: List<MessageStat>, modifier: Modifier = Modifier) {
     Column(modifier = modifier) {
-        Text(
-            title,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-        )
         Row(
             modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant).padding(8.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
