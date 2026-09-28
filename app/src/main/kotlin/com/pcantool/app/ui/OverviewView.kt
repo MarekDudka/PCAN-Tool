@@ -31,7 +31,7 @@ fun OverviewView(stats: List<MessageStat>) {
             HeaderCell("Type", 90.dp)
             HeaderCell("ID (hex)", 90.dp)
             HeaderCell("DLC", 50.dp)
-            HeaderCell("Data (hex)", 220.dp)
+            HeaderCell("Data (hex)", 260.dp)
             HeaderCell("Count", 80.dp)
             HeaderCell("Cycle (ms)", 100.dp)
         }
@@ -56,7 +56,7 @@ private fun StatRow(stat: MessageStat) {
         Cell(frameType(stat), 90.dp)
         Cell(message.idHex(), 90.dp)
         Cell(message.dlc.toString(), 50.dp)
-        Cell(if (message.remote) "" else message.dataHex(), 220.dp)
+        Cell(if (message.remote) "" else message.dataHex(), 260.dp)
         Cell(stat.count.toString(), 80.dp)
         Cell(stat.cycleTimeMicros?.let { formatMillis(it) } ?: "-", 100.dp)
     }
@@ -64,7 +64,7 @@ private fun StatRow(stat: MessageStat) {
 
 @Composable
 private fun Cell(text: String, width: Dp) {
-    Text(text, fontFamily = FontFamily.Monospace, modifier = Modifier.width(width))
+    Text(text, fontFamily = FontFamily.Monospace, maxLines = 1, softWrap = false, modifier = Modifier.width(width))
 }
 
 private fun frameType(stat: MessageStat): String = when {

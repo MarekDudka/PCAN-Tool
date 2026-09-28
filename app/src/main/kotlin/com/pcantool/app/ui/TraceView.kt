@@ -51,7 +51,7 @@ private fun TraceHeaderRow() {
         HeaderCell("Type", 90.dp)
         HeaderCell("ID (hex)", 90.dp)
         HeaderCell("DLC", 50.dp)
-        HeaderCell("Data (hex)", 220.dp)
+        HeaderCell("Data (hex)", 260.dp)
     }
 }
 
@@ -71,13 +71,13 @@ private fun TraceRow(index: Int, message: CanMessage) {
         Cell(frameType(message), 90.dp)
         Cell(message.idHex(), 90.dp)
         Cell(message.dlc.toString(), 50.dp)
-        Cell(if (message.remote) "" else message.dataHex(), 220.dp)
+        Cell(if (message.remote) "" else message.dataHex(), 260.dp)
     }
 }
 
 @Composable
 private fun Cell(text: String, width: Dp) {
-    Text(text, fontFamily = FontFamily.Monospace, modifier = Modifier.width(width))
+    Text(text, fontFamily = FontFamily.Monospace, maxLines = 1, softWrap = false, modifier = Modifier.width(width))
 }
 
 private fun frameType(message: CanMessage): String = when {
