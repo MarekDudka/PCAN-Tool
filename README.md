@@ -15,22 +15,30 @@ adapters: live message viewer, id/type filtering, recording and CSV export.
 - `app` — the Compose Multiplatform Desktop UI: connection bar, filter panel, recording controls,
   and Trace/Overview views.
 
-## Prerequisite: PCAN-Basic native library
+## System requirements to run PCAN-Tool
 
-PCAN-Basic is proprietary software from PEAK-System and is **not** bundled with this project. You
-must install it separately, and it must be discoverable on the OS's native library search path:
+Everything below is about *using* a built `.deb`/`.AppImage`/`.msi` — see
+[Building installers](#building-installers) if you're building from source instead.
 
-- **Windows**: install the PCAN driver package for your adapter (e.g. "PCAN-USB"), which installs
-  `PCANBasic.dll`. Get it from https://www.peak-system.com/products/software/development-packages/pcan-basic/
-- **Linux**: load PEAK's `pcan` kernel module (source vendored at
-  [`third-party/peak-linux-driver-8.20.0`](third-party/peak-linux-driver-8.20.0) — see that
-  folder's README to build and `insmod` it) and install the PCAN-Basic library
-  (`libpcanbasic.so`), then ensure it's on `LD_LIBRARY_PATH` or in a standard location such as
-  `/usr/lib`. Without the kernel module loaded, `CAN_Initialize` fails with
-  `PCAN_ERROR_NODRIVER` even though the USB adapter shows up in `lsusb`.
-
-If the library can't be found, the app reports this clearly when you try to connect, rather than
-crashing on startup.
+- **Java: nothing to install.** The packaged app bundles its own jlinked runtime, so no separate
+  JRE/JDK is required on the machine running it.
+- **PCAN-Basic: install separately, not bundled.** It's proprietary software from PEAK-System —
+  get it from
+  https://www.peak-system.com/products/software/development-packages/pcan-basic/ — and it must be
+  discoverable on the OS's native library search path or the app can't find it (it reports this
+  clearly at connect time rather than crashing on startup):
+  - **Windows**: install the PCAN driver package for your adapter (e.g. "PCAN-USB"), which
+    installs `PCANBasic.dll`.
+  - **Linux**: install `libpcanbasic.so`, on `LD_LIBRARY_PATH` or in a standard location such as
+    `/usr/lib` (with the unversioned `libpcanbasic.so` symlink JNA needs alongside whatever
+    versioned file — e.g. `libpcanbasic.so.4` — actually ships).
+- **Linux only — PEAK's `pcan` kernel module, loaded and actually claiming your adapter.** This is
+  usually the fiddliest part; full instructions (building it, the udev rule for non-root
+  permissions, and the in-kernel `peak_usb` driver conflict that silently stops `pcan.ko` from
+  claiming the device) are in
+  [`third-party/peak-linux-driver-8.20.0`](third-party/peak-linux-driver-8.20.0)'s own README.
+  Without it loaded and actually bound, connecting fails with `PCAN_ERROR_NODRIVER` even though
+  the adapter shows up fine in `lsusb`.
 
 Installing and using PCAN-Basic is governed by PEAK-System's own End User Software License
 Agreement, not this project's license. A copy is kept at

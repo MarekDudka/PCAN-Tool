@@ -55,6 +55,30 @@ sudo modprobe i2c-algo-bit
 sudo insmod pcan.ko
 ```
 
+If `insmod` succeeds and `lsmod | grep pcan` shows it loaded, but `/dev/pcan*` still doesn't
+exist, check what's actually bound to your adapter's USB interface:
+
+```
+for d in /sys/bus/usb/devices/*; do
+    [ "$(cat "$d/idVendor" 2>/dev/null)" = "0c72" ] || continue
+    for i in "$d"/*/; do [ -e "${i}driver" ] && echo "$(basename "$i") -> $(readlink -f "${i}driver")"; done
+done
+```
+
+Modern kernels ship an in-tree SocketCAN driver (`peak_usb`) for the same PEAK USB adapters, and
+it auto-loads on plug-in — a CAN interface can only be claimed by one driver at a time, so if
+`peak_usb` grabs it first (you'll see a `can0`-style interface and `peak_usb` in the list above
+instead of `pcan`), the out-of-tree `pcan.ko` never gets a chance even though it's loaded. The
+vendored `udev/blacklist-peak.conf` stops the in-tree driver from auto-loading:
+
+```
+sudo cp third-party/peak-linux-driver-8.20.0/driver/udev/blacklist-peak.conf /etc/modprobe.d/
+sudo rmmod peak_usb   # only unloads it now; the blacklist only prevents future auto-loads
+```
+
+Then unplug and replug the adapter so it re-enumerates and `pcan.ko` (already loaded, now
+unopposed) claims it. Re-check with the `driver ->` loop above — it should now say `pcan`.
+
 `insmod` only loads the module for the current boot; it does **not** persist. Either re-run it
 after every reboot, or install [DKMS](https://github.com/dell/dkms) (`sudo apt install dkms`) and
 register it once so it rebuilds/reloads automatically across kernel updates:
@@ -69,7 +93,9 @@ sudo dkms install peak-linux-driver/8.20.0
 ### Set up the udev rule
 
 By default the USB device node PEAK's driver creates is only writable by `root`, so a normal user
-can't open the channel. The vendored `udev/45-pcan.rules` fixes that:
+can't open the channel — PCAN-Basic surfaces this as `PCAN_ERROR_RESOURCE` ("A resource (FIFO,
+Client, timeout) cannot be created") from `CAN_Initialize`, even though the channel shows up as
+available. The vendored `udev/45-pcan.rules` fixes that:
 
 ```
 sudo cp third-party/peak-linux-driver-8.20.0/driver/udev/45-pcan.rules /etc/udev/rules.d/
