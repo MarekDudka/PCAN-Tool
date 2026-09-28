@@ -46,6 +46,15 @@ If instead you get `PCAN_ERROR_NODRIVER` ("The driver is not loaded") from PCAN-
 USB adapter is visible in `lsusb`, this step hasn't been done (or didn't survive a reboot — see
 below).
 
+If `insmod` fails with `Unknown symbol in module`, this driver's PCI/I2C support (built in by
+default alongside USB support) references `i2c_bit_add_bus`, which lives in the separate
+`i2c-algo-bit` kernel module — it's not missing, just not loaded yet:
+
+```
+sudo modprobe i2c-algo-bit
+sudo insmod pcan.ko
+```
+
 `insmod` only loads the module for the current boot; it does **not** persist. Either re-run it
 after every reboot, or install [DKMS](https://github.com/dell/dkms) (`sudo apt install dkms`) and
 register it once so it rebuilds/reloads automatically across kernel updates:
