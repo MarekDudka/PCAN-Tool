@@ -40,18 +40,20 @@ fun AppScreen(viewModel: AppViewModel) {
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
             )
         }
-        HorizontalDivider()
-        FilterPanel(filter = viewModel.filter, onFilterChanged = { viewModel.filter = it })
-        HorizontalDivider()
-        RecordingBar(
-            isRecording = viewModel.isRecording,
-            recordedCount = viewModel.recordedCount,
-            exportError = viewModel.lastExportError,
-            onStart = viewModel::startRecording,
-            onStop = viewModel::stopRecording,
-            onClear = viewModel::clearRecording,
-            onExport = viewModel::exportRecordingToCsv,
-        )
+        if (tab == ViewTab.TRACE) {
+            HorizontalDivider()
+            FilterPanel(filter = viewModel.filter, onFilterChanged = { viewModel.filter = it })
+            HorizontalDivider()
+            RecordingBar(
+                isRecording = viewModel.isRecording,
+                recordedCount = viewModel.recordedCount,
+                exportError = viewModel.lastExportError,
+                onStart = viewModel::startRecording,
+                onStop = viewModel::stopRecording,
+                onClear = viewModel::clearRecording,
+                onExport = viewModel::exportRecordingToCsv,
+            )
+        }
         HorizontalDivider()
         TabRow(selectedTabIndex = tab.ordinal) {
             ViewTab.entries.forEach { entry ->
@@ -60,8 +62,7 @@ fun AppScreen(viewModel: AppViewModel) {
         }
         when (tab) {
             ViewTab.TRACE -> TraceView(
-                rxMessages = viewModel.rxTraceMessages,
-                txMessages = viewModel.txTraceMessages,
+                messages = viewModel.traceMessages,
                 periodicMessages = viewModel.periodicMessages,
                 onSendOnce = viewModel::sendMessage,
                 onAddPeriodic = viewModel::addPeriodicMessage,

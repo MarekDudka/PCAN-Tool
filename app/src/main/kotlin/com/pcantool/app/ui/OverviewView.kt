@@ -39,13 +39,14 @@ fun OverviewView(
             StatsTable(rxStats, modifier = Modifier.fillMaxSize())
         }
         HorizontalDivider()
-        TxSection(
+        SendMessageArea(
             periodicMessages = periodicMessages,
             onSendOnce = onSendOnce,
             onAddPeriodic = onAddPeriodic,
             onTogglePeriodic = onTogglePeriodic,
             onRemovePeriodic = onRemovePeriodic,
             modifier = Modifier.weight(1f).fillMaxWidth(),
+            label = "TX",
         ) {
             StatsTable(txStats, modifier = Modifier.fillMaxSize())
         }

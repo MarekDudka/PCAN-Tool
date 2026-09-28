@@ -46,8 +46,8 @@ class AppViewModel(private val scope: CoroutineScope) {
         private set
     var filter by mutableStateOf(MessageFilter.ACCEPT_ALL)
 
-    val rxTraceMessages = mutableStateListOf<CanMessage>()
-    val txTraceMessages = mutableStateListOf<CanMessage>()
+    /** The unified Trace log: RX and TX interleaved in the order they actually happened. */
+    val traceMessages = mutableStateListOf<DirectedMessage>()
     val rxStats = mutableStateMapOf<Long, MessageStat>()
     val txStats = mutableStateMapOf<Long, MessageStat>()
 
@@ -163,10 +163,8 @@ class AppViewModel(private val scope: CoroutineScope) {
             lastSendError = null
             val stat = txStatsTable.update(sent)
             txStats[stat.key] = stat
-            txTraceMessages.add(sent)
-            if (txTraceMessages.size > MAX_TRACE_ROWS) txTraceMessages.removeAt(0)
-            if (recordingSession.record(sent, Direction.TX) != null) {
-                recordedCount = recordingSession.count
+            if (filter.matches(sent)) {
+                addToTrace(sent, Direction.TX)
             }
         } catch (e: Exception) {
             lastSendError = e.message ?: "Failed to send"
@@ -177,17 +175,20 @@ class AppViewModel(private val scope: CoroutineScope) {
         val stat = rxStatsTable.update(message)
         rxStats[stat.key] = stat
         if (filter.matches(message)) {
-            rxTraceMessages.add(message)
-            if (rxTraceMessages.size > MAX_TRACE_ROWS) rxTraceMessages.removeAt(0)
-            if (recordingSession.record(message, Direction.RX) != null) {
-                recordedCount = recordingSession.count
-            }
+            addToTrace(message, Direction.RX)
+        }
+    }
+
+    private fun addToTrace(message: CanMessage, direction: Direction) {
+        traceMessages.add(DirectedMessage(message, direction))
+        if (traceMessages.size > MAX_TRACE_ROWS) traceMessages.removeAt(0)
+        if (recordingSession.record(message, direction) != null) {
+            recordedCount = recordingSession.count
         }
     }
 
     fun clearTrace() {
-        rxTraceMessages.clear()
-        txTraceMessages.clear()
+        traceMessages.clear()
         rxStats.clear()
         txStats.clear()
         rxStatsTable.clear()
