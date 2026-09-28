@@ -72,3 +72,13 @@ Classic CAN (11/29-bit, up to 8 data bytes) only — no CAN FD. Filtering happen
 (`MessageFilter`, applied to both the live view and recording); the hardware range filter
 (`CAN_FilterMessages`) is wired into `pcan-basic` but not used by the UI, since it can't express
 the standard/extended/remote-frame filtering the UI needs on its own.
+
+## License
+
+This software is licensed under the [MIT License](LICENSE). It utilizes the PCAN-Basic API by
+PEAK-System Technik GmbH. PCAN-Basic components remain the property of PEAK-System and are
+subject to their respective usage terms and hardware requirements (see
+[`licenses/PEAK-SYSTEM-EULA.txt`](licenses/PEAK-SYSTEM-EULA.txt)); PCAN-Basic itself is not
+distributed with this software. The vendored kernel driver source under
+[`third-party/peak-linux-driver-8.20.0`](third-party/peak-linux-driver-8.20.0) is PEAK-System's
+own code under its own GPLv2/LGPLv2.1 licenses, not MIT.
