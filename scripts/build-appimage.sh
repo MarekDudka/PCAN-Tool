@@ -8,8 +8,7 @@
 # AppDir layout appimagetool expects, instead of teaching Gradle a format it has no support for.
 #
 # Usage: ./scripts/build-appimage.sh
-# Requires: ./gradlew :app:createDistributable has been run (this script runs it if needed),
-# and network access the first time, to fetch appimagetool.
+# Requires network access the first time, to fetch appimagetool.
 
 set -eu
 
@@ -20,10 +19,11 @@ TOOL_DIR="$ROOT_DIR/build/tools"
 APPIMAGETOOL="$TOOL_DIR/appimagetool-x86_64.AppImage"
 APPDIR="$OUT_DIR/AppDir"
 
-if [ ! -x "$APP_IMAGE_DIR/bin/PCAN-Tool" ]; then
-    echo "Distributable app image not found, running :app:createDistributable..."
-    (cd "$ROOT_DIR" && ./gradlew :app:createDistributable --console=plain)
-fi
+# Always let Gradle decide whether a rebuild is needed — its own up-to-date checks handle that
+# correctly (and cheaply, no-opping if nothing changed); a "does the binary already exist" check
+# here would not, since it'd skip rebuilding after source changes and silently repackage stale
+# code into the AppImage.
+(cd "$ROOT_DIR" && ./gradlew :app:createDistributable --console=plain)
 
 mkdir -p "$TOOL_DIR"
 if [ ! -x "$APPIMAGETOOL" ]; then
