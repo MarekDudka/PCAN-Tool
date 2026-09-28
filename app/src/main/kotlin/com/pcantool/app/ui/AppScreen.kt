@@ -13,12 +13,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.pcantool.app.state.AppViewModel
+import com.pcantool.app.state.ConnectionState
 
 private enum class ViewTab(val label: String) { TRACE("Trace"), OVERVIEW("Overview") }
 
 @Composable
 fun AppScreen(viewModel: AppViewModel) {
-    var tab by remember { mutableStateOf(ViewTab.TRACE) }
+    var tab by remember { mutableStateOf(ViewTab.OVERVIEW) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         ConnectionBar(
@@ -29,6 +30,12 @@ fun AppScreen(viewModel: AppViewModel) {
             onBaudRateSelected = { viewModel.selectedBaudRate = it },
             onConnect = viewModel::connect,
             onDisconnect = viewModel::disconnect,
+        )
+        HorizontalDivider()
+        SendPanel(
+            enabled = viewModel.connectionState is ConnectionState.Connected,
+            sendError = viewModel.lastSendError,
+            onSend = viewModel::sendMessage,
         )
         HorizontalDivider()
         FilterPanel(filter = viewModel.filter, onFilterChanged = { viewModel.filter = it })
@@ -49,8 +56,11 @@ fun AppScreen(viewModel: AppViewModel) {
             }
         }
         when (tab) {
-            ViewTab.TRACE -> TraceView(viewModel.traceMessages)
-            ViewTab.OVERVIEW -> OverviewView(viewModel.stats.values.sortedBy { it.latest.id })
+            ViewTab.TRACE -> TraceView(viewModel.rxTraceMessages, viewModel.txTraceMessages)
+            ViewTab.OVERVIEW -> OverviewView(
+                rxStats = viewModel.rxStats.values.sortedBy { it.latest.id },
+                txStats = viewModel.txStats.values.sortedBy { it.latest.id },
+            )
         }
     }
 }

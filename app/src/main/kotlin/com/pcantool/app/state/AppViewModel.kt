@@ -7,7 +7,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.pcantool.core.CanMessage
 import com.pcantool.core.CsvExporter
+import com.pcantool.core.Direction
 import com.pcantool.core.MessageFilter
+import com.pcantool.core.MessageStat
 import com.pcantool.core.MessageStatsTable
 import com.pcantool.core.RecordingSession
 import com.pcantool.pcanbasic.PcanBaudRate
@@ -26,9 +28,10 @@ private const val MAX_TRACE_ROWS = 5000
 
 /**
  * Holds all mutable UI state and owns the PCAN connection. Every mutation of [connection],
- * [recordingSession] or [statsTable] happens on [ioDispatcher], a single-threaded dispatcher, so
- * the background read loop and UI-triggered actions (connect/disconnect/record/export) never
- * race on that state even though nothing here is explicitly locked.
+ * [recordingSession], [rxStatsTable] or [txStatsTable] happens on [ioDispatcher], a
+ * single-threaded dispatcher, so the background read loop and UI-triggered actions
+ * (connect/disconnect/send/record/export) never race on that state even though nothing here is
+ * explicitly locked.
  */
 class AppViewModel(private val scope: CoroutineScope) {
     private val ioDispatcher = Dispatchers.IO.limitedParallelism(1)
@@ -41,8 +44,10 @@ class AppViewModel(private val scope: CoroutineScope) {
         private set
     var filter by mutableStateOf(MessageFilter.ACCEPT_ALL)
 
-    val traceMessages = mutableStateListOf<CanMessage>()
-    val stats = mutableStateMapOf<Long, com.pcantool.core.MessageStat>()
+    val rxTraceMessages = mutableStateListOf<CanMessage>()
+    val txTraceMessages = mutableStateListOf<CanMessage>()
+    val rxStats = mutableStateMapOf<Long, MessageStat>()
+    val txStats = mutableStateMapOf<Long, MessageStat>()
 
     var isRecording by mutableStateOf(false)
         private set
@@ -50,10 +55,12 @@ class AppViewModel(private val scope: CoroutineScope) {
         private set
 
     var lastExportError by mutableStateOf<String?>(null)
+    var lastSendError by mutableStateOf<String?>(null)
 
     private var connection: PcanConnection? = null
     private var readJob: Job? = null
-    private val statsTable = MessageStatsTable()
+    private val rxStatsTable = MessageStatsTable()
+    private val txStatsTable = MessageStatsTable()
     private val recordingSession = RecordingSession()
 
     fun refreshAvailableChannels() {
@@ -70,7 +77,7 @@ class AppViewModel(private val scope: CoroutineScope) {
                 val conn = PcanConnection.open(selectedChannel, selectedBaudRate)
                 connection = conn
                 connectionState = ConnectionState.Connected(selectedChannel)
-                conn.readFlow().collect { message -> handleIncoming(message) }
+                conn.readFlow().collect { message -> handleReceived(message) }
             } catch (e: CancellationException) {
                 // expected when disconnect() cancels this job
             } catch (e: Exception) {
@@ -90,22 +97,49 @@ class AppViewModel(private val scope: CoroutineScope) {
         readJob = null
     }
 
-    private fun handleIncoming(message: CanMessage) {
-        val stat = statsTable.update(message)
-        stats[stat.key] = stat
+    /** Sends a frame on the current connection; no-ops with [lastSendError] set if not connected. */
+    fun sendMessage(id: Long, extended: Boolean, remote: Boolean, data: ByteArray) {
+        scope.launch(ioDispatcher) {
+            val conn = connection
+            if (conn == null) {
+                lastSendError = "Not connected"
+                return@launch
+            }
+            try {
+                val sent = conn.write(id, extended, remote, data)
+                lastSendError = null
+                val stat = txStatsTable.update(sent)
+                txStats[stat.key] = stat
+                txTraceMessages.add(sent)
+                if (txTraceMessages.size > MAX_TRACE_ROWS) txTraceMessages.removeAt(0)
+                if (recordingSession.record(sent, Direction.TX) != null) {
+                    recordedCount = recordingSession.count
+                }
+            } catch (e: Exception) {
+                lastSendError = e.message ?: "Failed to send"
+            }
+        }
+    }
+
+    private fun handleReceived(message: CanMessage) {
+        val stat = rxStatsTable.update(message)
+        rxStats[stat.key] = stat
         if (filter.matches(message)) {
-            traceMessages.add(message)
-            if (traceMessages.size > MAX_TRACE_ROWS) traceMessages.removeAt(0)
-            if (recordingSession.record(message) != null) {
+            rxTraceMessages.add(message)
+            if (rxTraceMessages.size > MAX_TRACE_ROWS) rxTraceMessages.removeAt(0)
+            if (recordingSession.record(message, Direction.RX) != null) {
                 recordedCount = recordingSession.count
             }
         }
     }
 
     fun clearTrace() {
-        traceMessages.clear()
-        stats.clear()
-        statsTable.clear()
+        rxTraceMessages.clear()
+        txTraceMessages.clear()
+        rxStats.clear()
+        txStats.clear()
+        rxStatsTable.clear()
+        txStatsTable.clear()
     }
 
     fun startRecording() {

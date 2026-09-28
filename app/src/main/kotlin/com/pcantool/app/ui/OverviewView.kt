@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,10 +21,23 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.pcantool.core.MessageStat
 
-/** One row per distinct CAN id: latest payload, total count and time between the last two occurrences. */
+/** One row per distinct CAN id, received (RX) and sent (TX) shown as separate tables. */
 @Composable
-fun OverviewView(stats: List<MessageStat>) {
-    Column(modifier = Modifier.fillMaxSize()) {
+fun OverviewView(rxStats: List<MessageStat>, txStats: List<MessageStat>) {
+    Row(modifier = Modifier.fillMaxSize()) {
+        StatsTable("RX", rxStats, modifier = Modifier.weight(1f).fillMaxHeight())
+        StatsTable("TX", txStats, modifier = Modifier.weight(1f).fillMaxHeight())
+    }
+}
+
+@Composable
+private fun StatsTable(title: String, stats: List<MessageStat>, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
+        Text(
+            title,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+        )
         Row(
             modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant).padding(8.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -43,7 +57,7 @@ fun OverviewView(stats: List<MessageStat>) {
 
 @Composable
 private fun HeaderCell(text: String, width: Dp) {
-    Text(text, fontWeight = FontWeight.Bold, modifier = Modifier.width(width))
+    Text(text, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false, modifier = Modifier.width(width))
 }
 
 @Composable

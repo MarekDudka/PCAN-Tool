@@ -22,8 +22,19 @@ private const val FILTER_OPEN: Int = 0x01
 class PcanConnection internal constructor(private val channel: PcanChannel) : AutoCloseable {
     private val handle: Short = channel.handle.toShort()
     private val lib get() = PCANBasicLibrary.INSTANCE
+    private val openedAtNanos = System.nanoTime()
 
-    fun write(id: Long, extended: Boolean, remote: Boolean, data: ByteArray) {
+    private fun elapsedMicros(): Long = (System.nanoTime() - openedAtNanos) / 1000
+
+    /**
+     * Writes a frame and returns it as a [CanMessage] stamped with the time since [open], for the
+     * caller to show/record as a transmitted (TX) entry. PCAN-Basic has no "current hardware
+     * clock" query outside of an actual received message, so unlike [readFlow]'s RX timestamps
+     * (which come from the hardware), this one is host-clock based — both start counting at
+     * roughly the same instant (channel init), so they stay close enough to share one recording,
+     * but TX timing here reflects host/USB scheduling rather than firmware-precise bus time.
+     */
+    fun write(id: Long, extended: Boolean, remote: Boolean, data: ByteArray): CanMessage {
         require(data.size <= 8) { "Classic CAN frames carry at most 8 data bytes" }
         val msg = TPCANMsg()
         msg.id = id.toInt()
@@ -34,6 +45,7 @@ class PcanConnection internal constructor(private val channel: PcanChannel) : Au
         msg.data = ByteArray(8).also { data.copyInto(it) }
         val status = PcanStatus(lib.CAN_Write(handle, msg))
         if (!status.isOk) throw PcanException(status)
+        return CanMessage(id, extended, remote, data.copyOf(), elapsedMicros())
     }
 
     /** Opens the hardware-level acceptance range for one frame kind (standard or extended ids). */

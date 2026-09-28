@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -22,15 +23,28 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.pcantool.core.CanMessage
 
-/** Chronological log of every message that passed the current filter, newest at the bottom. */
+/** Chronological logs of filtered messages, received (RX) and sent (TX) side by side. */
 @Composable
-fun TraceView(messages: List<CanMessage>) {
+fun TraceView(rxMessages: List<CanMessage>, txMessages: List<CanMessage>) {
+    Row(modifier = Modifier.fillMaxSize()) {
+        TraceList("RX", rxMessages, modifier = Modifier.weight(1f).fillMaxHeight())
+        TraceList("TX", txMessages, modifier = Modifier.weight(1f).fillMaxHeight())
+    }
+}
+
+@Composable
+private fun TraceList(title: String, messages: List<CanMessage>, modifier: Modifier = Modifier) {
     val listState = rememberLazyListState()
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) listState.scrollToItem(messages.size - 1)
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = modifier) {
+        Text(
+            title,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+        )
         TraceHeaderRow()
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
             itemsIndexed(messages, key = { index, _ -> index }) { index, message ->
@@ -57,7 +71,7 @@ private fun TraceHeaderRow() {
 
 @Composable
 private fun HeaderCell(text: String, width: Dp) {
-    Text(text, fontWeight = FontWeight.Bold, modifier = Modifier.width(width))
+    Text(text, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false, modifier = Modifier.width(width))
 }
 
 @Composable
