@@ -1,0 +1,11 @@
+# Build artifacts from running `make` inside driver/ — keep only source under version control.
+*.o
+*.ko
+*.mod
+*.mod.c
+*.mod.o
+.*.cmd
+Module.symvers
+modules.order
+.cache.mk
+.tmp_versions/

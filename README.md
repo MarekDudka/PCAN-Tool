@@ -22,9 +22,12 @@ must install it separately, and it must be discoverable on the OS's native libra
 
 - **Windows**: install the PCAN driver package for your adapter (e.g. "PCAN-USB"), which installs
   `PCANBasic.dll`. Get it from https://www.peak-system.com/products/software/development-packages/pcan-basic/
-- **Linux**: install PEAK's Linux driver (`peak-linux-driver`) and the PCAN-Basic library
+- **Linux**: load PEAK's `pcan` kernel module (source vendored at
+  [`third-party/peak-linux-driver-8.20.0`](third-party/peak-linux-driver-8.20.0) — see that
+  folder's README to build and `insmod` it) and install the PCAN-Basic library
   (`libpcanbasic.so`), then ensure it's on `LD_LIBRARY_PATH` or in a standard location such as
-  `/usr/lib`.
+  `/usr/lib`. Without the kernel module loaded, `CAN_Initialize` fails with
+  `PCAN_ERROR_NODRIVER` even though the USB adapter shows up in `lsusb`.
 
 If the library can't be found, the app reports this clearly when you try to connect, rather than
 crashing on startup.
